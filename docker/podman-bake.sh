@@ -83,6 +83,10 @@ case "${TARGET}" in
         BASE_TAGS="${BASE_TAGS}-armv6"
         PLATFORM="linux/arm/v6"
         ;;
+    *-riscv64)
+        BASE_TAGS="${BASE_TAGS}-riscv64"
+        PLATFORM="linux/riscv64"
+        ;;
     *)
         BASE_TAGS="${BASE_TAGS}-amd64"
         PLATFORM="linux/amd64"

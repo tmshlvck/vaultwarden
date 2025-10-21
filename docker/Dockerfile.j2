@@ -79,20 +79,35 @@ RUN apt-get update && \
         --no-install-recommends \
         clang \
         pkg-config \
-        git \
-        "libc6-$(xx-info debian-arch)-cross" \
-        "libc6-dev-$(xx-info debian-arch)-cross" \
-        "linux-libc-dev-$(xx-info debian-arch)-cross" && \
-    xx-apt-get install -y \
-        --no-install-recommends \
-        gcc \
-        libpq-dev \
-        libpq5 \
-        libssl-dev \
-        libmariadb-dev \
-        zlib1g-dev && \
-    # Run xx-cargo early, since it sometimes seems to break when run at a later stage
-    echo "export CARGO_TARGET=$(xx-cargo --print-target-triple)" >> /env-cargo
+        git && \
+    # riscv64 support: xx-apt-get doesn't work for riscv64 (only in sid), so install natively
+    if [[ "$(xx-info arch)" == "riscv64" ]]; then \
+        apt-get install -y \
+            --no-install-recommends \
+            gcc \
+            libpq-dev \
+            libpq5 \
+            libssl-dev \
+            libmariadb-dev \
+            zlib1g-dev && \
+        echo "export CARGO_TARGET=riscv64gc-unknown-linux-gnu" >> /env-cargo ; \
+    else \
+        apt-get install -y \
+            --no-install-recommends \
+            "libc6-$(xx-info debian-arch)-cross" \
+            "libc6-dev-$(xx-info debian-arch)-cross" \
+            "linux-libc-dev-$(xx-info debian-arch)-cross" && \
+        xx-apt-get install -y \
+            --no-install-recommends \
+            gcc \
+            libpq-dev \
+            libpq5 \
+            libssl-dev \
+            libmariadb-dev \
+            zlib1g-dev && \
+        # Run xx-cargo early, since it sometimes seems to break when run at a later stage
+        echo "export CARGO_TARGET=$(xx-cargo --print-target-triple)" >> /env-cargo ; \
+    fi
 {% endif %}
 
 # Create CARGO_HOME folder and don't download rust docs
@@ -108,7 +123,10 @@ WORKDIR /app
 ARG TARGET_PKG_CONFIG_PATH
 
 RUN source /env-cargo && \
-    if xx-info is-cross ; then \
+    # For riscv64, we use native builds, so no cross-compilation setup needed
+    if [[ "$(xx-info arch)" == "riscv64" ]]; then \
+        echo "# riscv64 native build - no cross-compilation" >> /env-cargo ; \
+    elif xx-info is-cross ; then \
         # We can't use xx-cargo since that uses clang, which doesn't work for our libraries.
         # Because of this we generate the needed environment variables here which we can load in the needed steps.
         echo "export CC_$(echo "${CARGO_TARGET}" | tr '[:upper:]' '[:lower:]' | tr - _)=/usr/bin/$(xx-info)-gcc" >> /env-cargo && \
